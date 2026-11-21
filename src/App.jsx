@@ -5,6 +5,7 @@ import Bazar from "./components/Bazar";
 import Joma from "./components/Joma";
 import Meal from "./components/Meal";
 import Hisab from "./components/Hisab";
+
 const initial = {
   members: ["Pronay", "Hasibul", "Mim", "Rabbi bhai", "Tamim", "Aditto"],
   meals: {},
