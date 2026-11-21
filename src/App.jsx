@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useLocalStorage from "./hooks/useLocalStorage";
 import Members from "./components/Members";
 import Bazar from "./components/Bazar";
 import Joma from "./components/Joma";
 const initial = {
-  members: ["Member 1", "Member 2", "Member 3", "Member 4", "Member 5", "Member 6"],
+  members: ["Pronay", "Hasibul", "Mim", "Rabbi bhai", "Tamim", "Aditto"],
   meals: {},
   bazar: [],
   joma: [],
@@ -22,6 +22,15 @@ export default function App() {
   const [data, setData] = useLocalStorage("mess_react_v1", initial);
   const [tab, setTab] = useState("meal");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  useEffect(() => {
+    setData((d) => {
+      const names = d.members ?? [];
+      const isDefaultNames = names.every((name, i) => name === `Member ${i + 1}`);
+
+      return isDefaultNames ? { ...d, members: initial.members } : d;
+    });
+  }, [setData]);
 
   return (
     <main>
