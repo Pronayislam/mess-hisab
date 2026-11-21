@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+app.get("/", (req, res) => res.send("Mess Hisab API is running"));
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 5000;
