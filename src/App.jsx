@@ -1,7 +1,7 @@
 import { useState } from "react";
 import useLocalStorage from "./hooks/useLocalStorage";
 import Members from "./components/Members";
-
+import Bazar from "./components/Bazar";
 const initial = {
   members: ["Member 1", "Member 2", "Member 3", "Member 4", "Member 5", "Member 6"],
   meals: {},
@@ -39,11 +39,11 @@ export default function App() {
         ))}
       </div>
 
-      {tab === "mem" ? (
-        <Members data={data} setData={setData} />
-      ) : (
-        <p className="card">Ei tab ta porer step e banabo</p>
-      )}
+    {tab === "bazar" && <Bazar data={data} setData={setData} month={month} />}
+{tab === "mem" && <Members data={data} setData={setData} />}
+{!["bazar", "mem"].includes(tab) && (
+  <p className="card"> </p>
+)}
     </main>
   );
 }
