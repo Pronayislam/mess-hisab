@@ -3,6 +3,7 @@ import useLocalStorage from "./hooks/useLocalStorage";
 import Members from "./components/Members";
 import Bazar from "./components/Bazar";
 import Joma from "./components/Joma";
+import Meal from "./components/Meal";
 const initial = {
   members: ["Pronay", "Hasibul", "Mim", "Rabbi bhai", "Tamim", "Aditto"],
   meals: {},
@@ -49,10 +50,11 @@ export default function App() {
         ))}
       </div>
 
- {tab === "bazar" && <Bazar data={data} setData={setData} month={month} />}
+{tab === "meal" && <Meal data={data} setData={setData} />}
+{tab === "bazar" && <Bazar data={data} setData={setData} month={month} />}
 {tab === "joma" && <Joma data={data} setData={setData} month={month} />}
 {tab === "mem" && <Members data={data} setData={setData} />}
-{!["bazar", "joma", "mem"].includes(tab) && (
+{!["meal", "bazar", "joma", "mem"].includes(tab) && (
   <p className="card">Ei tab ta porer step e banabo</p>
 )}
     </main>
