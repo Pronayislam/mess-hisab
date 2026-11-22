@@ -1,26 +1,27 @@
+import { useState, useEffect } from "react";
+import { api } from "../api";
+
 export default function Hisab({ data, month }) {
-  const n = data.members.length;
-  const meals = Array(n).fill(0);
-  const joma = Array(n).fill(0);
-  let totalBazar = 0;
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  Object.entries(data.meals).forEach(([date, day]) => {
-    if (date.slice(0, 7) !== month) return;
-    Object.entries(day).forEach(([i, c]) => {
-      if (+i < n) meals[+i] += c[0] + c[1];
-    });
-  });
+  useEffect(() => {
+    if (!month) return;
+    setLoading(true);
+    setError("");
+    setSummary(null);
+    api
+      .getSummary(month)
+      .then((res) => setSummary(res))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [month]);
 
-  data.bazar.forEach((b) => {
-    if (b.date.slice(0, 7) === month) totalBazar += b.amt;
-  });
-
-  data.joma.forEach((j) => {
-    if (j.date.slice(0, 7) === month && j.by < n) joma[j.by] += j.amt;
-  });
-
-  const totalMeal = meals.reduce((a, b) => a + b, 0);
-  const rate = totalMeal ? totalBazar / totalMeal : 0;
+  const totalBazar = summary?.totalBazar ?? 0;
+  const totalMeals = summary?.totalMeals ?? 0;
+  const mealRate   = summary?.mealRate   ?? 0;
+  const members    = summary?.members    ?? [];
 
   return (
     <>
@@ -32,48 +33,59 @@ export default function Hisab({ data, month }) {
         </button>
       </div>
 
+      {error && <p style={{ color: "red", marginBottom: "0.75rem" }}>{error}</p>}
+
       <div className="card row">
         <div>
           <div className="mu">Mot bazar</div>
-          <div className="big">{totalBazar}</div>
+          <div className="big">{loading ? "…" : totalBazar}</div>
         </div>
         <div>
           <div className="mu">Mot meal</div>
-          <div className="big">{totalMeal}</div>
+          <div className="big">{loading ? "…" : totalMeals}</div>
         </div>
         <div>
           <div className="mu">Meal rate</div>
-          <div className="big">{rate.toFixed(2)}</div>
+          <div className="big">{loading ? "…" : mealRate.toFixed(2)}</div>
         </div>
       </div>
 
       <div className="card wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Naam</th><th>Meal</th><th>Khoroch</th><th>Joma dise</th><th>Hisab</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.members.map((m, i) => {
-              const cost = meals[i] * rate;
-              const bal = joma[i] - cost;
-              return (
-                <tr key={i}>
-                  <td>{m}</td>
-                  <td>{meals[i]}</td>
-                  <td>{cost.toFixed(0)}</td>
-                  <td>{joma[i]}</td>
-                  <td className={bal >= 0 ? "p" : "d"}>
-                    {bal >= 0 ? "Pabe " : "Dibe "}
-                    {Math.abs(bal).toFixed(0)}
-                  </td>
+        {loading ? (
+          <p className="mu">Loading…</p>
+        ) : (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Naam</th><th>Meal</th><th>Khoroch</th><th>Joma dise</th><th>Hisab</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <p className="mu">Khoroch = meal × rate. Hisab = joma − khoroch.</p>
+              </thead>
+              <tbody>
+                {members.length === 0 && (
+                  <tr><td colSpan="5" className="mu">Ei mashe kono data nai</td></tr>
+                )}
+                {members.map((row, i) => {
+                  const name = data.members[row.member] ?? row.member;
+                  const bal  = row.balance ?? (row.joma - row.cost);
+                  return (
+                    <tr key={i}>
+                      <td>{name}</td>
+                      <td>{row.meals}</td>
+                      <td>{Number(row.cost).toFixed(0)}</td>
+                      <td>{row.joma}</td>
+                      <td className={bal >= 0 ? "p" : "d"}>
+                        {bal >= 0 ? "Pabe " : "Dibe "}
+                        {Math.abs(bal).toFixed(0)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="mu">Khoroch = meal × rate. Hisab = joma − khoroch.</p>
+          </>
+        )}
       </div>
     </>
   );
