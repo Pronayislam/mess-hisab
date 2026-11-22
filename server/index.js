@@ -5,6 +5,8 @@ import mongoose from "mongoose";
 import bazarRoutes from "./routes/bazar.js";
 import jomaRoutes from "./routes/joma.js";
 import mealRoutes from "./routes/meal.js";
+import summaryRoutes from "./routes/summary.js";
+
 const app = express();
 
 app.use(cors());
@@ -12,6 +14,7 @@ app.use(express.json());
 app.use("/api/joma", jomaRoutes);
 app.use("/api/meals", mealRoutes);
 app.use("/api/bazar", bazarRoutes);
+app.use("/api/summary", summaryRoutes);
 app.get("/", (req, res) => res.send("Mess Hisab API is running"));
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
