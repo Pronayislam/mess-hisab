@@ -3,15 +3,15 @@ import { api } from "../api";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-// Build a blank draft: all members default to [dupur=0, rat=0]
+// draft is an array parallel to data.members: each slot is [dupur, rat]
 const blankDraft = (members) => members.map(() => [0, 0]);
 
-// Convert the flat API list into a draft array indexed by member index
+// Convert flat API records (member = NAME string) into draft indexed by position in members[]
 function listToDraft(members, records) {
   const draft = blankDraft(members);
   records.forEach((r) => {
-    const idx = r.member;
-    if (idx >= 0 && idx < members.length) {
+    const idx = members.indexOf(r.member); // match by name, not by numeric index
+    if (idx !== -1) {
       draft[idx] = [r.dupur ?? 0, r.rat ?? 0];
     }
   });
@@ -46,20 +46,24 @@ export default function Meal({ data, month }) {
       .finally(() => setDailyLoading(false));
   }, [month]);
 
-  const reload = useCallback(() => {
-    if (!month) return;
-    setLoading(true);
-    setError("");
-    api
-      .getMeals(month)
-      .then((res) => {
-        const list = Array.isArray(res) ? res : res.data ?? [];
-        setRecords(list);
-        setDraft(listToDraft(data.members, list.filter((r) => r.date === date)));
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [month, date, data.members]);
+  const reload = useCallback(
+    (currentDate) => {
+      if (!month) return;
+      setLoading(true);
+      setError("");
+      api
+        .getMeals(month)
+        .then((res) => {
+          const list = Array.isArray(res) ? res : res.data ?? [];
+          setRecords(list);
+          // rebuild draft for whichever date is currently selected
+          setDraft(listToDraft(data.members, list.filter((r) => r.date === (currentDate ?? date))));
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    },
+    [month, date, data.members] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   useEffect(() => {
     reload();
@@ -71,6 +75,7 @@ export default function Meal({ data, month }) {
   function changeDate(d) {
     setDate(d);
     setSaved(false);
+    // rebuild draft from already-fetched records – no extra network call
     setDraft(listToDraft(data.members, records.filter((r) => r.date === d)));
   }
 
@@ -98,17 +103,20 @@ export default function Meal({ data, month }) {
         draft.map((c, i) => {
           const dupur = Math.min(3, Math.max(0, c[0]));
           const rat   = Math.min(3, Math.max(0, c[1]));
-          return api.saveMeal({ member: i, date, dupur, rat });
+          // Send the member's NAME string so the server upserts by name, matching Bazar/Joma
+          return api.saveMeal({ member: data.members[i], date, dupur, rat });
         })
       );
-      // Optimistic update for flat records
+      // Optimistic update: replace this date's records with what we just saved
       setRecords((prev) => {
         const next = prev.filter((r) => r.date !== date);
-        draft.forEach((c, i) => next.push({ member: i, date, dupur: c[0], rat: c[1] }));
+        draft.forEach((c, i) =>
+          next.push({ member: data.members[i], date, dupur: c[0], rat: c[1] })
+        );
         return next;
       });
       setSaved(true);
-      reloadDaily(); // refresh the daily summary after save
+      reloadDaily(); // refresh daily count table after every save
     } catch (err) {
       setError(err.message);
     } finally {
@@ -118,11 +126,11 @@ export default function Meal({ data, month }) {
 
   // ── Daily summary helpers ─────────────────────────────────────────────────
 
-  // Build the "Who" string: "Pronay (1+3), Rahim (1+2)"
+  // "Who" string – m.member is a NAME string from the server
   function whoString(members) {
     return members
       .filter((m) => (m.dupur + m.rat) > 0)
-      .map((m) => `${data.members[m.member] ?? m.member} (${m.dupur}+${m.rat})`)
+      .map((m) => `${m.member} (${m.dupur}+${m.rat})`)
       .join(", ");
   }
 
@@ -149,7 +157,7 @@ export default function Meal({ data, month }) {
               </thead>
               <tbody>
                 {data.members.map((m, i) => (
-                  <tr key={i}>
+                  <tr key={m}>
                     <td>{m}</td>
                     {[0, 1].map((slot) => (
                       <td key={slot}>

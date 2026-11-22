@@ -52,7 +52,7 @@ export default function App() {
         ))}
       </div>
 
-{tab === "meal" && <Meal data={data} setData={setData} />}
+{tab === "meal" && <Meal data={data} month={month} />}
 {tab === "bazar" && <Bazar data={data} setData={setData} month={month} />}
 {tab === "joma" && <Joma data={data} setData={setData} month={month} />}
 {tab === "hisab" && <Hisab data={data} month={month} />}
