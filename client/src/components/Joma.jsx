@@ -1,33 +1,74 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../api";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function Joma({ data, setData, month }) {
+export default function Joma({ data, month }) {
   const [date, setDate] = useState(today());
   const [by, setBy] = useState(0);
-  const [amt, setAmt] = useState("");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
 
-  function add() {
-    const a = Number(amt);
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load joma entries on mount and whenever month changes
+  useEffect(() => {
+    if (!month) return;
+    setLoading(true);
+    setError("");
+    api
+      .getJoma(month)
+      .then((res) => setList(Array.isArray(res) ? res : res.data ?? []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [month]);
+
+  function reload() {
+    setLoading(true);
+    setError("");
+    api
+      .getJoma(month)
+      .then((res) => setList(Array.isArray(res) ? res : res.data ?? []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+
+  async function add() {
+    const a = Number(amount);
     if (!(a > 0)) return;
-    setData((d) => ({
-      ...d,
-      joma: [...d.joma, { id: Date.now(), date, by, amt: a }],
-    }));
-    setAmt("");
+    setSubmitting(true);
+    setError("");
+    try {
+      await api.addJoma({ member: by, amount: a, date, note });
+      setAmount("");
+      setNote("");
+      reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function remove(id) {
+  async function remove(entry) {
     if (!window.confirm("Delete korben?")) return;
-    setData((d) => ({ ...d, joma: d.joma.filter((j) => j.id !== id) }));
+    setError("");
+    try {
+      await api.deleteJoma(entry._id);
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
-  const list = data.joma
-    .filter((j) => j.date.slice(0, 7) === month)
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const sorted = [...list].sort((a, b) => (a.date < b.date ? 1 : -1));
 
+  // Per-member totals for the summary card
   const sums = data.members.map((_, i) =>
-    list.filter((j) => j.by === i).reduce((s, j) => s + j.amt, 0)
+    list.filter((j) => j.member === i || j.by === i).reduce((s, j) => s + (j.amount ?? j.amt ?? 0), 0)
   );
 
   return (
@@ -52,12 +93,17 @@ export default function Joma({ data, setData, month }) {
               type="number"
               min="0"
               inputMode="decimal"
-              value={amt}
-              onChange={(e) => setAmt(e.target.value)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
             />
           </div>
         </div>
-        <button className="btn" onClick={add}>Joma add korun</button>
+        <label>Note (optional)</label>
+        <input style={{ width: "100%" }} value={note} onChange={(e) => setNote(e.target.value)} />
+        <button className="btn" onClick={add} disabled={submitting}>
+          {submitting ? "Adding…" : "Joma add korun"}
+        </button>
+        {error && <p style={{ color: "red", marginTop: "0.5rem" }}>{error}</p>}
       </div>
 
       <div className="card wrap">
@@ -75,26 +121,30 @@ export default function Joma({ data, setData, month }) {
       </div>
 
       <div className="card wrap">
-        <table>
-          <thead>
-            <tr><th>Din</th><th>Ke</th><th>Taka</th><th></th></tr>
-          </thead>
-          <tbody>
-            {list.length === 0 && (
-              <tr><td colSpan="4" className="mu">Ei mashe kono joma nai</td></tr>
-            )}
-            {list.map((j) => (
-              <tr key={j.id}>
-                <td>{j.date.slice(5)}</td>
-                <td>{data.members[j.by] ?? "?"}</td>
-                <td>{j.amt}</td>
-                <td>
-                  <button className="btn x" onClick={() => remove(j.id)}>✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {loading ? (
+          <p className="mu">Loading…</p>
+        ) : (
+          <table>
+            <thead>
+              <tr><th>Din</th><th>Ke</th><th>Taka</th><th></th></tr>
+            </thead>
+            <tbody>
+              {sorted.length === 0 && (
+                <tr><td colSpan="4" className="mu">Ei mashe kono joma nai</td></tr>
+              )}
+              {sorted.map((entry) => (
+                <tr key={entry._id}>
+                  <td>{entry.date.slice(5)}</td>
+                  <td>{data.members[entry.member ?? entry.by] ?? "?"}</td>
+                  <td>{entry.amount ?? entry.amt}</td>
+                  <td>
+                    <button className="btn x" onClick={() => remove(entry)}>✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );
