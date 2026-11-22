@@ -1,32 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { api } from "../api";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function Bazar({ data, setData, month }) {
+export default function Bazar({ data, month }) {
   const [date, setDate] = useState(today());
   const [by, setBy] = useState(0);
-  const [amt, setAmt] = useState("");
+  const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
-  function add() {
-    const a = Number(amt);
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load bazar entries whenever month changes
+  useEffect(() => {
+    if (!month) return;
+    setLoading(true);
+    setError("");
+    api
+      .getBazar(month)
+      .then((res) => setList(Array.isArray(res) ? res : res.data ?? []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [month]);
+
+  function reload() {
+    setLoading(true);
+    setError("");
+    api
+      .getBazar(month)
+      .then((res) => setList(Array.isArray(res) ? res : res.data ?? []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+
+  async function add() {
+    const a = Number(amount);
     if (!(a > 0)) return;
-    setData((d) => ({
-      ...d,
-      bazar: [...d.bazar, { id: Date.now(), date, by, amt: a, note }],
-    }));
-    setAmt("");
-    setNote("");
+    setSubmitting(true);
+    setError("");
+    try {
+      await api.addBazar({ by, amt: a, date, note });
+      setAmount("");
+      setNote("");
+      reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function remove(id) {
+  async function remove(entry) {
     if (!window.confirm("Delete korben?")) return;
-    setData((d) => ({ ...d, bazar: d.bazar.filter((b) => b.id !== id) }));
+    setError("");
+    try {
+      await api.deleteBazar(entry._id);
+      reload();
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
-  const list = data.bazar
-    .filter((b) => b.date.slice(0, 7) === month)
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const sorted = [...list].sort((a, b) => (a.date < b.date ? 1 : -1));
   const total = list.reduce((s, b) => s + b.amt, 0);
 
   return (
@@ -51,39 +89,46 @@ export default function Bazar({ data, setData, month }) {
               type="number"
               min="0"
               inputMode="decimal"
-              value={amt}
-              onChange={(e) => setAmt(e.target.value)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
             />
           </div>
         </div>
         <label>Ki kena hoilo (optional)</label>
         <input style={{ width: "100%" }} value={note} onChange={(e) => setNote(e.target.value)} />
-        <button className="btn" onClick={add}>Bazar add korun</button>
+        <button className="btn" onClick={add} disabled={submitting}>
+          {submitting ? "Adding…" : "Bazar add korun"}
+        </button>
+        {error && <p style={{ color: "red", marginTop: "0.5rem" }}>{error}</p>}
       </div>
 
       <div className="card wrap">
         <b>Ei mashe mot bazar: {total} taka</b>
-        <table>
-          <thead>
-            <tr><th>Din</th><th>Ke</th><th>Taka</th><th>Note</th><th></th></tr>
-          </thead>
-          <tbody>
-            {list.length === 0 && (
-              <tr><td colSpan="5" className="mu">Ei mashe kono bazar nai</td></tr>
-            )}
-            {list.map((b) => (
-              <tr key={b.id}>
-                <td>{b.date.slice(5)}</td>
-                <td>{data.members[b.by] ?? "?"}</td>
-                <td>{b.amt}</td>
-                <td>{b.note}</td>
-                <td>
-                  <button className="btn x" onClick={() => remove(b.id)}>✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {loading ? (
+          <p className="mu">Loading…</p>
+        ) : (
+          <table>
+            <thead>
+              <tr><th>Din</th><th>Ke</th><th>Taka</th><th>Note</th><th></th></tr>
+            </thead>
+            <tbody>
+              {sorted.length === 0 && (
+                <tr><td colSpan="5" className="mu">Ei mashe kono bazar nai</td></tr>
+              )}
+              {sorted.map((entry) => (
+                <tr key={entry._id}>
+                  <td>{entry.date.slice(5)}</td>
+                  <td>{data.members[entry.by] ?? "?"}</td>
+                  <td>{entry.amt}</td>
+                  <td>{entry.note}</td>
+                  <td>
+                    <button className="btn x" onClick={() => remove(entry)}>✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );
