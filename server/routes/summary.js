@@ -52,5 +52,29 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+// GET /api/summary/daily?month=2026-11
+router.get("/daily", async (req, res) => {
+  try {
+    const { month } = req.query;
+    if (!month) {
+      return res.status(400).json({ message: "month is required (YYYY-MM)" });
+    }
+    const meals = await Meal.find({ date: { $regex: `^${month}` } }).sort({ date: 1 });
 
+    const days = {};
+    meals.forEach((m) => {
+      const d = (days[m.date] ??= { date: m.date, dupur: 0, rat: 0, total: 0, members: [] });
+      d.dupur += m.dupur;
+      d.rat += m.rat;
+      d.total += m.dupur + m.rat;
+      if (m.dupur + m.rat > 0) {
+        d.members.push({ member: m.member, dupur: m.dupur, rat: m.rat });
+      }
+    });
+
+    res.json(Object.values(days));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 export default router;

@@ -27,4 +27,5 @@ export const api = {
 
   // Summary
   getSummary: (month) => request(`/summary?month=${month}`),
+    getDailyMeals: (month) => request(`/summary/daily?month=${month}`),
 };
