@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
+import { useToast } from "../context/ToastContext";
+import { formatDateShort } from "../utils/format";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -19,11 +21,12 @@ function listToDraft(members, records) {
 }
 
 export default function Meal({ data, month }) {
+  const { addToast } = useToast();
   const [date, setDate] = useState(today());
   const [draft, setDraft] = useState(() => blankDraft(data.members));
   const [saved, setSaved] = useState(false);
 
-  const [records, setRecords] = useState([]);   // flat records for the month (getMeals)
+  const [records, setRecords] = useState([]); // flat records for the month (getMeals)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -102,7 +105,7 @@ export default function Meal({ data, month }) {
       await Promise.all(
         draft.map((c, i) => {
           const dupur = Math.min(3, Math.max(0, c[0]));
-          const rat   = Math.min(3, Math.max(0, c[1]));
+          const rat = Math.min(3, Math.max(0, c[1]));
           // Send the member's NAME string so the server upserts by name, matching Bazar/Joma
           return api.saveMeal({ member: data.members[i], date, dupur, rat });
         })
@@ -117,13 +120,17 @@ export default function Meal({ data, month }) {
       });
       setSaved(true);
       reloadDaily(); // refresh daily count table after every save
+      addToast({
+        title: "Meal saved",
+        message: `Entries for ${formatDateShort(date)} saved successfully.`,
+      });
     } catch (err) {
       setError(err.message);
+      addToast({ variant: "error", title: "Save failed", message: err.message });
     } finally {
       setSaving(false);
     }
   }
-
   // ── Daily summary helpers ─────────────────────────────────────────────────
 
   // "Who" string – m.member is a NAME string from the server
@@ -135,7 +142,7 @@ export default function Meal({ data, month }) {
   }
 
   const grandDupur = dailyList.reduce((s, r) => s + (r.dupur ?? 0), 0);
-  const grandRat   = dailyList.reduce((s, r) => s + (r.rat   ?? 0), 0);
+  const grandRat = dailyList.reduce((s, r) => s + (r.rat ?? 0), 0);
   const grandTotal = dailyList.reduce((s, r) => s + (r.total ?? 0), 0);
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -143,106 +150,162 @@ export default function Meal({ data, month }) {
   return (
     <>
       {/* ── Meal entry card ── */}
-      <div className="card">
-        <label style={{ marginTop: 0 }}>Tarikh</label>
-        <input type="date" value={date} onChange={(e) => changeDate(e.target.value)} />
-
-        {loading ? (
-          <p className="mu">Loading…</p>
-        ) : (
-          <div className="wrap">
-            <table>
-              <thead>
-                <tr><th>Naam</th><th>Dupur</th><th>Rat</th></tr>
-              </thead>
-              <tbody>
-                {data.members.map((m, i) => (
-                  <tr key={m}>
-                    <td>{m}</td>
-                    {[0, 1].map((slot) => (
-                      <td key={slot}>
-                        <select
-                          value={draft[i]?.[slot] ?? 0}
-                          onChange={(e) => setCell(i, slot, Number(e.target.value))}
-                        >
-                          {[0, 1, 2, 3].map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="card section">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <span className="text-brand-600">🍛</span>
+            <h2 className="text-base font-semibold text-slate-800">Today's Meals</h2>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <label className="label">Date</label>
+            <input
+              type="date"
+              className="input w-auto max-w-xs"
+              value={date}
+              onChange={(e) => changeDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="card-body">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <span className="text-slate-400 text-sm">Loading meals…</span>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th className="w-32">Member</th>
+                      <th className="text-center">Lunch</th>
+                      <th className="text-center">Dinner</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.members.map((m, i) => (
+                      <tr key={m} className="group">
+                        <td className="font-medium text-slate-700">{m}</td>
+                        <td className="text-center">
+                          <select
+                            className="select w-full text-center bg-white"
+                            value={draft[i]?.[0] ?? 0}
+                            onChange={(e) => setCell(i, 0, Number(e.target.value))}
+                          >
+                            {[0, 1, 2, 3].map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="text-center">
+                          <select
+                            className="select w-full text-center bg-white"
+                            value={draft[i]?.[1] ?? 0}
+                            onChange={(e) => setCell(i, 1, Number(e.target.value))}
+                          >
+                            {[0, 1, 2, 3].map((n) => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-        <p className="mu">0 = meal nai, 1 = normal, 2/3 = beshi (guest ba extra).</p>
+              <p className="mt-4 text-xs text-slate-500">
+                0 = no meal · 1 = normal · 2/3 = extra (guest)
+              </p>
 
-        <button className="btn" onClick={save} disabled={saving || loading}>
-          {saving ? "Saving…" : "Save korun"}
-        </button>{" "}
-        <button className="btn" style={{ background: "var(--mu)" }} onClick={() => setAll(1)}>
-          Shobar 1+1
-        </button>{" "}
-        <button className="btn" style={{ background: "var(--mu)" }} onClick={() => setAll(0)}>
-          Shobar 0
-        </button>{" "}
-        {saved && <span className="p">Save hoyeche ✓</span>}
-        {error && <p style={{ color: "red", marginTop: "0.5rem" }}>{error}</p>}
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
+                  {saving ? "Saving…" : "Save Meals"}
+                </button>
+                <button className="btn btn-outline" onClick={() => setAll(1)} disabled={saving || loading}>
+                  Set All 1+1
+                </button>
+                <button className="btn btn-outline" onClick={() => setAll(0)} disabled={saving || loading}>
+                  Set All 0
+                </button>
+                {saved && (
+                  <span className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-green-50 text-green-700 text-xs font-medium border border-green-100">
+                    ✓ Saved
+                  </span>
+                )}
+                {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Daily meal count card ── */}
-      <div className="card wrap">
-        <b>Daily meal count</b>
+      <div className="card section">
+        <div className="card-header">
+          <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <span>📅</span> Daily Meal Count
+          </h2>
+        </div>
+        <div className="card-body p-0">
+          {dailyError && (
+            <div className="p-4 text-xs text-red-600 bg-red-50 border-b border-red-100">
+              {dailyError}
+            </div>
+          )}
 
-        {dailyError && (
-          <p style={{ color: "red", margin: "0.4rem 0" }}>{dailyError}</p>
-        )}
-
-        {dailyLoading ? (
-          <p className="mu">Loading…</p>
-        ) : dailyList.length === 0 ? (
-          <p className="mu">Ei mashe kono meal data nai</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Din</th>
-                <th>Dupur</th>
-                <th>Rat</th>
-                <th style={{ fontWeight: "bold", color: "var(--acc, #0070f3)" }}>Total</th>
-                <th>Ke khaibe</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailyList
-                .slice()
-                .sort((a, b) => (a.date < b.date ? -1 : 1))
-                .map((row) => (
-                  <tr key={row.date}>
-                    <td>{row.date.slice(5)}</td>
-                    <td>{row.dupur}</td>
-                    <td>{row.rat}</td>
-                    <td style={{ fontWeight: "bold" }}>{row.total}</td>
-                    <td className="mu" style={{ fontSize: "0.82rem" }}>
-                      {whoString(row.members ?? [])}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-            <tfoot>
-              <tr style={{ borderTop: "2px solid var(--bd, #ddd)" }}>
-                <td><b>Mot</b></td>
-                <td><b>{grandDupur}</b></td>
-                <td><b>{grandRat}</b></td>
-                <td style={{ fontWeight: "bold" }}><b>{grandTotal}</b></td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        )}
+          {dailyLoading ? (
+            <div className="px-6 py-4 text-center text-slate-400 text-sm">
+              Loading daily counts…
+            </div>
+          ) : dailyList.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">📅</div>
+              <p className="text-sm text-slate-500">No meal data for this month yet.</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th className="w-20">Date</th>
+                      <th className="text-center">Lunch</th>
+                      <th className="text-center">Dinner</th>
+                      <th className="text-right">Total</th>
+                      <th>Who</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyList
+                      .slice()
+                      .sort((a, b) => (a.date < b.date ? -1 : 1))
+                      .map((row) => (
+                        <tr key={row.date} className="group">
+                          <td className="font-medium text-slate-700">{formatDateShort(row.date)}</td>
+                          <td className="text-center">{row.dupur}</td>
+                          <td className="text-center">{row.rat}</td>
+                          <td className="text-right font-semibold text-brand-600">{row.total}</td>
+                          <td className="text-xs text-slate-500 max-w-[200px] truncate">
+                            {whoString(row.members ?? []) || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-50 font-bold border-t border-slate-200">
+                      <td className="text-slate-600">Month total</td>
+                      <td className="text-center">{grandDupur}</td>
+                      <td className="text-center">{grandRat}</td>
+                      <td className="text-right text-brand-700">{grandTotal}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </>
   );
