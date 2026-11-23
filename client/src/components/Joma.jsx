@@ -5,7 +5,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function Joma({ data, month }) {
   const [date, setDate] = useState(today());
-  const [by, setBy] = useState(0);
+  const [by, setBy] = useState(data.members[0] ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
@@ -66,9 +66,9 @@ export default function Joma({ data, month }) {
 
   const sorted = [...list].sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  // Per-member totals for the summary card
-  const sums = data.members.map((_, i) =>
-    list.filter((j) => j.member === i || j.by === i).reduce((s, j) => s + (j.amount ?? j.amt ?? 0), 0)
+  // Per-member totals for the summary card — member field is now a name string
+  const sums = data.members.map((name) =>
+    list.filter((j) => j.member === name).reduce((s, j) => s + (j.amount ?? j.amt ?? 0), 0)
   );
 
   return (
@@ -81,9 +81,9 @@ export default function Joma({ data, month }) {
           </div>
           <div>
             <label style={{ marginTop: 0 }}>Ke dilo</label>
-            <select value={by} onChange={(e) => setBy(Number(e.target.value))}>
-              {data.members.map((m, i) => (
-                <option key={i} value={i}>{m}</option>
+            <select value={by} onChange={(e) => setBy(e.target.value)}>
+              {data.members.map((m) => (
+                <option key={m} value={m}>{m}</option>
               ))}
             </select>
           </div>
@@ -135,7 +135,7 @@ export default function Joma({ data, month }) {
               {sorted.map((entry) => (
                 <tr key={entry._id}>
                   <td>{entry.date.slice(5)}</td>
-                  <td>{data.members[entry.member ?? entry.by] ?? "?"}</td>
+                  <td>{entry.member ?? "?"}</td>
                   <td>{entry.amount ?? entry.amt}</td>
                   <td>
                     <button className="btn x" onClick={() => remove(entry)}>✕</button>

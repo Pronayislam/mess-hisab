@@ -5,7 +5,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function Bazar({ data, month }) {
   const [date, setDate] = useState(today());
-  const [by, setBy] = useState(0);
+  const [by, setBy] = useState(data.members[0] ?? "");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
@@ -77,9 +77,9 @@ export default function Bazar({ data, month }) {
           </div>
           <div>
             <label style={{ marginTop: 0 }}>Ke korlo</label>
-            <select value={by} onChange={(e) => setBy(Number(e.target.value))}>
-              {data.members.map((m, i) => (
-                <option key={i} value={i}>{m}</option>
+            <select value={by} onChange={(e) => setBy(e.target.value)}>
+              {data.members.map((m) => (
+                <option key={m} value={m}>{m}</option>
               ))}
             </select>
           </div>
@@ -118,7 +118,7 @@ export default function Bazar({ data, month }) {
               {sorted.map((entry) => (
                 <tr key={entry._id}>
                   <td>{entry.date.slice(5)}</td>
-                  <td>{data.members[entry.by] ?? "?"}</td>
+                  <td>{entry.by ?? "?"}</td>
                   <td>{entry.amt}</td>
                   <td>{entry.note}</td>
                   <td>
