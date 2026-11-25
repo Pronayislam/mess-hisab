@@ -6,15 +6,18 @@ import bazarRoutes from "./routes/bazar.js";
 import jomaRoutes from "./routes/joma.js";
 import mealRoutes from "./routes/meal.js";
 import summaryRoutes from "./routes/summary.js";
+import { auth, writeGuard } from "./middleware/auth.js";
+import authRoutes from "./routes/auth.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/api/joma", jomaRoutes);
-app.use("/api/meals", mealRoutes);
-app.use("/api/bazar", bazarRoutes);
-app.use("/api/summary", summaryRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/bazar", auth, writeGuard, bazarRoutes);
+app.use("/api/joma", auth, writeGuard, jomaRoutes);
+app.use("/api/meals", auth, writeGuard, mealRoutes);
+app.use("/api/summary", auth, summaryRoutes);
 app.get("/", (req, res) => res.send("Mess Hisab API is running"));
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 

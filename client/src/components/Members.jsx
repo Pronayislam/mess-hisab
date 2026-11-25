@@ -1,12 +1,15 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 
 export default function Members({ data, setData }) {
+  const { isAdmin } = useAuth();
   const { addToast } = useToast();
   const [text, setText] = useState("");
   const [copied, setCopied] = useState(false);
 
   function rename(i, name) {
+    if (!isAdmin) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     setData((d) => ({
@@ -25,6 +28,7 @@ export default function Members({ data, setData }) {
   }
 
   function restore() {
+    if (!isAdmin) return;
     try {
       const o = JSON.parse(text);
       if (!Array.isArray(o.members) || !o.meals || !Array.isArray(o.bazar)) throw new Error();
@@ -52,15 +56,18 @@ export default function Members({ data, setData }) {
               <div key={i}>
                 <label className="label">Member {i + 1}</label>
                 <input
-                  className="input"
+                  className={`input ${!isAdmin ? "bg-slate-50 text-slate-700 cursor-default" : ""}`}
                   value={m}
+                  readOnly={!isAdmin}
                   onChange={(e) => rename(i, e.target.value)}
                 />
               </div>
             ))}
           </div>
           <p className="mt-3 text-xs text-slate-500">
-            Renames save automatically. Edit names to keep bazar/joma history accurate.
+            {isAdmin
+              ? "Renames save automatically. Edit names to keep bazar/joma history accurate."
+              : "Read-only view. Only admins can edit member names."}
           </p>
         </div>
       </div>
@@ -95,19 +102,23 @@ export default function Members({ data, setData }) {
             </button>
           </div>
 
-          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
-            <label className="label">Restore from backup</label>
-            <textarea
-              rows="4"
-              className="input font-mono text-xs"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste backup JSON here…"
-            />
-          </div>
-          <button className="btn btn-outline" onClick={restore}>
-            Restore Backup
-          </button>
+          {isAdmin && (
+            <>
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
+                <label className="label">Restore from backup</label>
+                <textarea
+                  rows="4"
+                  className="input font-mono text-xs"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Paste backup JSON here…"
+                />
+              </div>
+              <button className="btn btn-outline" onClick={restore}>
+                Restore Backup
+              </button>
+            </>
+          )}
         </div>
       </div>
     </>

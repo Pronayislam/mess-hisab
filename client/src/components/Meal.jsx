@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../api";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { formatDateShort } from "../utils/format";
 
@@ -21,6 +22,7 @@ function listToDraft(members, records) {
 }
 
 export default function Meal({ data, month }) {
+  const { isAdmin } = useAuth();
   const { addToast } = useToast();
   const [date, setDate] = useState(today());
   const [draft, setDraft] = useState(() => blankDraft(data.members));
@@ -98,6 +100,7 @@ export default function Meal({ data, month }) {
   // ── Save ─────────────────────────────────────────────────────────────────
 
   async function save() {
+    if (!isAdmin) return;
     setSaving(true);
     setError("");
     setSaved(false);
@@ -151,13 +154,13 @@ export default function Meal({ data, month }) {
     <>
       {/* ── Meal entry card ── */}
       <div className="card section">
-        <div className="card-header">
+        <div className="card-header flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <span className="text-brand-600">🍛</span>
             <h2 className="text-base font-semibold text-slate-800">Today's Meals</h2>
           </div>
           <div className="flex items-center gap-2">
-            <label className="label">Date</label>
+            <label className="label mb-0">Date</label>
             <input
               type="date"
               className="input w-auto max-w-xs"
@@ -187,26 +190,38 @@ export default function Meal({ data, month }) {
                       <tr key={m} className="group">
                         <td className="font-medium text-slate-700">{m}</td>
                         <td className="text-center">
-                          <select
-                            className="select w-full text-center bg-white"
-                            value={draft[i]?.[0] ?? 0}
-                            onChange={(e) => setCell(i, 0, Number(e.target.value))}
-                          >
-                            {[0, 1, 2, 3].map((n) => (
-                              <option key={n} value={n}>{n}</option>
-                            ))}
-                          </select>
+                          {isAdmin ? (
+                            <select
+                              className="select w-full text-center bg-white"
+                              value={draft[i]?.[0] ?? 0}
+                              onChange={(e) => setCell(i, 0, Number(e.target.value))}
+                            >
+                              {[0, 1, 2, 3].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="inline-flex items-center justify-center min-w-[2.5rem] px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-700">
+                              {draft[i]?.[0] ?? 0}
+                            </span>
+                          )}
                         </td>
                         <td className="text-center">
-                          <select
-                            className="select w-full text-center bg-white"
-                            value={draft[i]?.[1] ?? 0}
-                            onChange={(e) => setCell(i, 1, Number(e.target.value))}
-                          >
-                            {[0, 1, 2, 3].map((n) => (
-                              <option key={n} value={n}>{n}</option>
-                            ))}
-                          </select>
+                          {isAdmin ? (
+                            <select
+                              className="select w-full text-center bg-white"
+                              value={draft[i]?.[1] ?? 0}
+                              onChange={(e) => setCell(i, 1, Number(e.target.value))}
+                            >
+                              {[0, 1, 2, 3].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="inline-flex items-center justify-center min-w-[2.5rem] px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-medium text-slate-700">
+                              {draft[i]?.[1] ?? 0}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -218,23 +233,26 @@ export default function Meal({ data, month }) {
                 0 = no meal · 1 = normal · 2/3 = extra (guest)
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
-                  {saving ? "Saving…" : "Save Meals"}
-                </button>
-                <button className="btn btn-outline" onClick={() => setAll(1)} disabled={saving || loading}>
-                  Set All 1+1
-                </button>
-                <button className="btn btn-outline" onClick={() => setAll(0)} disabled={saving || loading}>
-                  Set All 0
-                </button>
-                {saved && (
-                  <span className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-green-50 text-green-700 text-xs font-medium border border-green-100">
-                    ✓ Saved
-                  </span>
-                )}
-                {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-              </div>
+              {isAdmin && (
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button className="btn btn-primary" onClick={save} disabled={saving || loading}>
+                    {saving ? "Saving…" : "Save Meals"}
+                  </button>
+                  <button className="btn btn-outline" onClick={() => setAll(1)} disabled={saving || loading}>
+                    Set All 1+1
+                  </button>
+                  <button className="btn btn-outline" onClick={() => setAll(0)} disabled={saving || loading}>
+                    Set All 0
+                  </button>
+                  {saved && (
+                    <span className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-green-50 text-green-700 text-xs font-medium border border-green-100">
+                      ✓ Saved
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
             </>
           )}
         </div>
